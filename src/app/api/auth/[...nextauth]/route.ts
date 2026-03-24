@@ -1,4 +1,5 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
+import GoogleProvider from 'next-auth/providers/google';
 import { sql } from '@/lib/db';
 import { initDatabase } from '@/lib/db';
 
