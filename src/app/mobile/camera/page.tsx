@@ -135,17 +135,47 @@ export default function MobileCameraPage() {
   // Start camera
   const startCamera = async () => {
     try {
+      // Check if running in secure context (HTTPS or localhost)
+      if (!window.isSecureContext) {
+        alert('Camera requires HTTPS. Please access via HTTPS or use the PWA install feature.');
+        return;
+      }
+
+      // Check if getUserMedia is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Camera API not supported in this browser. Please use Chrome, Safari, or Firefox.');
+        return;
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }, // Use back camera
+        video: { 
+          facingMode: 'environment', // Use back camera
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
       });
       setStream(mediaStream);
       setShowCamera(true);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accessing camera:', error);
-      alert('Cannot access camera. Please allow camera permission.');
+      let message = 'Cannot access camera. ';
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        message += 'Camera permission denied. Please allow camera access in browser settings.';
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        message += 'No camera found on this device.';
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        message += 'Camera is being used by another app.';
+      } else if (error.name === 'OverconstrainedError') {
+        message += 'Camera constraints not met. Try a different browser.';
+      } else if (error.name === 'TypeError') {
+        message += 'Secure context required. Please use HTTPS.';
+      } else {
+        message += 'Error: ' + error.message;
+      }
+      alert(message);
     }
   };
 
