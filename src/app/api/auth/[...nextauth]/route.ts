@@ -1,19 +1,20 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
-import GoogleProvider from 'next-auth/providers/google';
 import { sql } from '@/lib/db';
 import { initDatabase } from '@/lib/db';
 
-// Initialize database on startup
-if (process.env.NODE_ENV === 'development') {
+// Initialize database on startup (both dev and production)
+if (process.env.DATABASE_URL) {
   initDatabase().catch(console.error);
 }
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        })]
+      : []),
     {
       id: 'demo',
       name: 'Demo',
