@@ -29,7 +29,11 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 365 * 24 * 60 * 60, // 1 year
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
+  jwt: {
+    maxAge: 365 * 24 * 60 * 60, // 1 year
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -57,6 +61,7 @@ export const authOptions: NextAuthOptions = {
         sameSite: 'lax',
         path: '/',
         secure: true,
+        maxAge: 365 * 24 * 60 * 60, // 1 year
       },
     },
   },
