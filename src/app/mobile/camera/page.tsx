@@ -217,6 +217,13 @@ export default function MobileCameraPage() {
     reader.readAsDataURL(file);
   };
 
+  // Trigger file input click
+  const triggerLoadImage = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   // Delete photo
   const deletePhoto = (id: string) => {
     setPhotos((prev) => prev.filter((p) => p.id !== id));
@@ -526,7 +533,8 @@ export default function MobileCameraPage() {
               ref={videoRef}
               autoPlay
               playsInline
-              className="w-full rounded-lg"
+              muted
+              className="w-full rounded-lg bg-gray-800"
             />
             <canvas ref={canvasRef} className="hidden" />
             <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-4">
