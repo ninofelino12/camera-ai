@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 
 interface LocalPhoto {
   id: string;
@@ -16,7 +15,6 @@ interface LocalPhoto {
 
 export default function MobileCameraPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,29 +28,18 @@ export default function MobileCameraPage() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
-  const [loggedIn, setLoggedIn] = useState(false);
   const [loadingImage, setLoadingImage] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [showShortcutMenu, setShowShortcutMenu] = useState(false);
   const [shortcuts, setShortcuts] = useState<Array<{id: string; name: string; email: string; color: string}>>([]);
 
-  // Check if user is logged in
-  useEffect(() => {
-    if (status === 'authenticated') {
-      setLoggedIn(true);
-    }
-  }, [status]);
-
   // Online/Offline detection
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-
     setIsOnline(navigator.onLine);
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -120,36 +107,24 @@ export default function MobileCameraPage() {
       setDeferredPrompt(e);
       setShowInstallPrompt(true);
     };
-
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
-
-  // Register service worker
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(console.error);
-    }
   }, []);
 
   // Start camera
   const startCamera = async () => {
     try {
-      // Check if running in secure context (HTTPS or localhost)
       if (!window.isSecureContext) {
         alert('Camera requires HTTPS. Please access via HTTPS or use the PWA install feature.');
         return;
       }
-
-      // Check if getUserMedia is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert('Camera API not supported in this browser. Please use Chrome, Safari, or Firefox.');
         return;
       }
-
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          facingMode: 'environment', // Use back camera
+          facingMode: 'environment',
           width: { ideal: 1920 },
           height: { ideal: 1080 }
         },
@@ -191,29 +166,23 @@ export default function MobileCameraPage() {
   // Take photo
   const takePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
-
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
-
     if (!context) return;
-
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0);
-
     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-
     const newPhoto: LocalPhoto = {
       id: Date.now().toString(),
       dataUrl,
       latitude: location.lat,
       longitude: location.lng,
-      email: email || session?.user?.email || '',
+      email: email || '',
       capturedDate: new Date().toISOString(),
       uploaded: false,
     };
-
     setPhotos((prev) => [newPhoto, ...prev]);
     stopCamera();
   };
@@ -222,43 +191,30 @@ export default function MobileCameraPage() {
   const handleLoadImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setLoadingImage(true);
-
     const reader = new FileReader();
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
-
       const newPhoto: LocalPhoto = {
         id: Date.now().toString(),
         dataUrl,
         latitude: location.lat,
         longitude: location.lng,
-        email: email || session?.user?.email || '',
+        email: email || '',
         capturedDate: new Date().toISOString(),
         uploaded: false,
       };
-
       setPhotos((prev) => [newPhoto, ...prev]);
       setLoadingImage(false);
-
-      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     };
-
     reader.onerror = () => {
       alert('Error loading image');
       setLoadingImage(false);
     };
-
     reader.readAsDataURL(file);
-  };
-
-  // Trigger file input
-  const triggerLoadImage = () => {
-    fileInputRef.current?.click();
   };
 
   // Delete photo
@@ -280,7 +236,6 @@ export default function MobileCameraPage() {
           photo_url: photo.dataUrl,
         }),
       });
-
       if (response.ok) {
         setPhotos((prev) =>
           prev.map((p) => (p.id === photo.id ? { ...p, uploaded: true } : p))
@@ -301,12 +256,9 @@ export default function MobileCameraPage() {
       alert('No photos to upload!');
       return;
     }
-
     if (!confirm(`Upload ${unuploadedPhotos.length} photo(s)?`)) return;
-
     setUploading(true);
     setUploadProgress({ current: 0, total: unuploadedPhotos.length });
-
     let successCount = 0;
     for (let i = 0; i < unuploadedPhotos.length; i++) {
       const photo = unuploadedPhotos[i];
@@ -314,11 +266,8 @@ export default function MobileCameraPage() {
       if (success) successCount++;
       setUploadProgress({ current: i + 1, total: unuploadedPhotos.length });
     }
-
     setUploading(false);
     alert(`Uploaded ${successCount}/${unuploadedPhotos.length} photos!`);
-
-    // Remove uploaded photos from localStorage
     setPhotos((prev) => prev.filter((p) => !p.uploaded));
   };
 
@@ -344,17 +293,14 @@ export default function MobileCameraPage() {
   const createShortcut = () => {
     const name = prompt('Shortcut name (e.g., Home, Office):');
     if (!name) return;
-
     const emailInput = prompt('Email for this location:', email || '');
     const color = prompt('Color (e.g., blue, green, red):', 'blue') || 'blue';
-
     const newShortcut = {
       id: Date.now().toString(),
       name,
       email: emailInput || '',
       color,
     };
-
     setShortcuts((prev) => [...prev, newShortcut]);
   };
 
@@ -363,7 +309,6 @@ export default function MobileCameraPage() {
     if (shortcut.email) {
       setEmail(shortcut.email);
     }
-    // Get current location and save to shortcut
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -396,48 +341,6 @@ export default function MobileCameraPage() {
     }
   };
 
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500" />
-      </div>
-    );
-  }
-
-  if (!loggedIn) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4">
-        <div className="max-w-md w-full bg-gray-800 rounded-2xl p-8 text-center">
-          <h1 className="text-2xl font-bold text-indigo-400 mb-4">Camera AI</h1>
-          <p className="text-gray-300 mb-6">Mobile Camera App with GPS Tagging</p>
-          
-          <div className="space-y-4">
-            <button
-              onClick={() => router.push('/login')}
-              className="w-full py-3 bg-indigo-600 rounded-xl font-medium"
-            >
-              Sign In to Upload
-            </button>
-            
-            <button
-              onClick={() => {
-                setLoggedIn(true);
-                setEmail('demo@mobile.local');
-              }}
-              className="w-full py-3 bg-gray-700 rounded-xl font-medium"
-            >
-              Use Demo Mode
-            </button>
-            
-            <p className="text-xs text-gray-500 mt-4">
-              Demo mode allows camera access but upload requires login
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Shortcut Menu Modal */}
@@ -455,7 +358,6 @@ export default function MobileCameraPage() {
                 </svg>
               </button>
             </div>
-
             {shortcuts.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
                 <p>No shortcuts yet</p>
@@ -500,7 +402,6 @@ export default function MobileCameraPage() {
                 ))}
               </div>
             )}
-
             <button
               onClick={createShortcut}
               className="w-full py-3 bg-indigo-600 rounded-xl font-medium"
@@ -510,6 +411,7 @@ export default function MobileCameraPage() {
           </div>
         </div>
       )}
+
       {/* Offline Banner */}
       {!isOnline && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-600 text-white px-4 py-2 text-center text-sm font-medium z-50 flex items-center justify-center space-x-2">
@@ -520,7 +422,7 @@ export default function MobileCameraPage() {
         </div>
       )}
 
-      {/* Online Banner (hidden when online) */}
+      {/* Online Banner */}
       {isOnline && (
         <div className="fixed top-0 left-0 right-0 bg-green-600/90 text-white px-4 py-1 text-center text-xs font-medium z-50">
           ✓ Online
@@ -738,43 +640,30 @@ export default function MobileCameraPage() {
         </div>
       </main>
 
-      {/* Hidden file input for loading images */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleLoadImage}
-        className="hidden"
-      />
-
-      {/* Bottom Action Bar */}
-      {!showCamera && (
-        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 shadow-lg p-4 z-50">
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={triggerLoadImage}
-              disabled={loadingImage}
-              className="py-4 bg-gray-700 rounded-xl font-bold text-lg flex items-center justify-center space-x-2 disabled:opacity-50"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>Load Image</span>
-            </button>
-            <button
-              onClick={startCamera}
-              className="py-4 bg-indigo-600 rounded-xl font-bold text-lg flex items-center justify-center space-x-2"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span>Take Photo</span>
-            </button>
-          </div>
+      {/* Bottom Action Buttons */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-4 z-40">
+        <div className="flex gap-3 max-w-md mx-auto">
+          <button
+            onClick={startCamera}
+            className="flex-1 py-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold text-lg"
+          >
+            📸 Take Photo
+          </button>
+          <button
+            onClick={triggerLoadImage}
+            className="flex-1 py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold text-lg"
+          >
+            🖼️ Load Image
+          </button>
         </div>
-      )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleLoadImage}
+          className="hidden"
+        />
+      </div>
     </div>
   );
 }

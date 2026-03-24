@@ -1,35 +1,21 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { getCameraDataCount, getCameraDataByUserId } from '@/lib/db/camera-data';
+import { getCameraDataCount, getAllCameraData } from '@/lib/db/camera-data';
 
 // GET /api/camera-data/stats - Get statistics
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const isDemo = session.user.email === process.env.DEMO_EMAIL;
-
     // Get total count
-    const total = await getCameraDataCount(isDemo ? undefined : session.user.id);
+    const total = await getCameraDataCount();
+
+    // Get all data for calculating today and this week
+    const allData = await getAllCameraData(1000);
 
     // Get today's count
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-    let userData;
-    if (isDemo) {
-      userData = await getCameraDataByUserId(session.user.id, 1000);
-    } else {
-      userData = await getCameraDataByUserId(session.user.id, 1000);
-    }
-
-    const today = userData.filter(
+    const today = allData.filter(
       (item) =>
         new Date(item.captured_date) >= startOfDay &&
         new Date(item.captured_date) < endOfDay
@@ -40,7 +26,7 @@ export async function GET() {
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
-    const thisWeek = userData.filter(
+    const thisWeek = allData.filter(
       (item) => new Date(item.captured_date) >= startOfWeek
     ).length;
 

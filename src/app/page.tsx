@@ -1,10 +1,6 @@
 import Link from 'next/link';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
-export default async function Home() {
-  const session = await getServerSession(authOptions);
-
+export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
       <div className="max-w-4xl w-full bg-white/10 backdrop-blur-lg rounded-3xl p-8 md:p-12 text-center shadow-2xl">
@@ -16,29 +12,18 @@ export default async function Home() {
         </p>
 
         <div className="flex flex-col md:flex-row gap-4 justify-center mb-8">
-          {session?.user ? (
-            <Link
-              href="/dashboard"
-              className="px-8 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-lg transition-all shadow-lg"
-            >
-              Go to Dashboard →
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg transition-all shadow-lg"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/mobile/camera"
-                className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-lg transition-all shadow-lg"
-              >
-                📱 Mobile Camera
-              </Link>
-            </>
-          )}
+          <Link
+            href="/mobile/camera"
+            className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-bold text-lg transition-all shadow-lg"
+          >
+            📱 Mobile Camera
+          </Link>
+          <Link
+            href="/dashboard"
+            className="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-lg transition-all shadow-lg"
+          >
+            📊 Dashboard
+          </Link>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 text-white">
@@ -59,11 +44,9 @@ export default async function Home() {
           </div>
         </div>
 
-        {session?.user && (
-          <p className="mt-8 text-gray-300">
-            Logged in as <span className="font-semibold">{session.user.email}</span>
-          </p>
-        )}
+        <p className="mt-8 text-gray-300 text-sm">
+          No login required - Start using immediately!
+        </p>
       </div>
     </div>
   );
